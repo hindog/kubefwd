@@ -82,6 +82,8 @@ type ServiceFWD struct {
 	PortsConfigurationPath string   // file path to IP reservation configuration
 
 	CheckIPReservations bool //Check IP reservations
+
+	CountErrors int //Count errors in a row
 }
 
 /**
@@ -130,6 +132,13 @@ func (svcFwd *ServiceFWD) GetPodsForService() []v1.Pod {
 // the forwarding setup for that or those pod(s). It will remove pods in-mem
 // that are no longer returned by k8s, should these not be correctly deleted.
 func (svcFwd *ServiceFWD) SyncPodForwards(force bool) {
+
+	waitTime := []int { 1, 5, 15 }
+	if(svcFwd.CountErrors > 0){
+		log.Printf("Waiting for pods %d second(s)...", waitTime[svcFwd.CountErrors-1])
+		time.Sleep(time.Second * time.Duration(waitTime[svcFwd.CountErrors-1]))
+	}
+
 	sync := func() {
 
 		defer func() { svcFwd.LastSyncedAt = time.Now() }()
@@ -363,17 +372,24 @@ func (svcFwd *ServiceFWD) LoopPodsToForward(pods []v1.Pod, includePodNameInHost 
 			// Fire and forget. The stopping is done in the service.Shutdown() method.
 			go func() {
 				svcFwd.AddServicePod(pfo)
-				if err := pfo.PortForward(); err != nil {
+				err := pfo.PortForward()
+				if err != nil {
+					if svcFwd.CountErrors < 3 {
+						svcFwd.CountErrors = svcFwd.CountErrors + 1
+						svcFwd.SyncPodForwards(true)
+					}
 					select {
 					case <-pfo.ManualStopChan: // if shutdown was given, we don't bother with the error.
 					default:
 						log.Errorf("PortForward error on %s: %s", pfo.PodName, err.Error())
 					}
 				} else {
+					svcFwd.CountErrors = 0
 					select {
 					case <-pfo.ManualStopChan: // if shutdown was given, don't log a warning as it's an intented stopping.
 					default:
 						log.Warnf("Stopped forwarding pod %s for %s", pfo.PodName, svcFwd)
+						svcFwd.SyncPodForwards(true)
 					}
 				}
 			}()

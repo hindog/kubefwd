@@ -454,6 +454,7 @@ func (opts *NamespaceOpts) AddServiceHandler(obj interface{}) {
 		ForwardIPReservations:    fwdReservations,
 		PortsConfigurationPath:   portsConfigurationPath,
 		CheckIPReservations:	  checkIPReservations,
+		CountErrors:			  0,
 	}
 
 	// Add the service to the catalog of services being forwarded

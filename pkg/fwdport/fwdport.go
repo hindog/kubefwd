@@ -213,7 +213,6 @@ func (pfo *PortForwardOpts) PortForward() error {
 	if err = fw.ForwardPorts(); err != nil {
 		log.Errorf("ForwardPorts error: %s", err.Error())
 		pfo.Stop()
-		dialerWithPing.stopPing()
 		return err
 	}
 
