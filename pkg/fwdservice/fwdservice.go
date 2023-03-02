@@ -6,6 +6,9 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"regexp"
+	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/txn2/kubefwd/pkg/fwdIp"
@@ -18,6 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	restclient "k8s.io/client-go/rest"
+	intstr "k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // ServiceFWD Single service to forward, with a reference to
@@ -74,6 +78,8 @@ type ServiceFWD struct {
 
 	ForwardConfigurationPath string   // file path to IP reservation configuration
 	ForwardIPReservations    []string // cli passed IP reservations
+
+	PortsConfigurationPath string   // file path to IP reservation configuration
 }
 
 /**
@@ -264,7 +270,31 @@ func (svcFwd *ServiceFWD) LoopPodsToForward(pods []v1.Pod, includePodNameInHost 
 			serviceHostName = serviceHostName + "." + svcFwd.Context
 		}
 
-		for _, port := range svcFwd.Svc.Spec.Ports {
+		var MyPorts []v1.ServicePort
+
+		if (svcFwd.PortsConfigurationPath == "") {
+			MyPorts = svcFwd.Svc.Spec.Ports
+		} else {
+			var ReadPorts []string = svcFwd.readPorts(serviceHostName)
+			for _, port := range ReadPorts{
+
+				portInfo := strings.Split(port, "=")
+
+				i, err := strconv.ParseInt(portInfo[1], 10, 64)
+				if err != nil {
+					panic(err)
+				}
+
+				MyPorts = append(MyPorts, v1.ServicePort{
+					Name:       "webhook",
+					Port:       int32(i),
+					TargetPort: intstr.FromString(portInfo[1]),
+					Protocol:   "TCP",
+				})
+			}
+		}
+
+		for _, port := range MyPorts {
 
 			// Skip if pod port protocol is UDP - not supported in k8s port forwarding yet, see https://github.com/kubernetes/kubernetes/issues/47862
 			if port.Protocol == v1.ProtocolUDP {
@@ -405,4 +435,18 @@ func (svcFwd *ServiceFWD) getPortMap(port int32) string {
 		}
 	}
 	return p
+}
+
+func (svcFwd *ServiceFWD) readPorts(svcName string) []string {
+	b, err := os.ReadFile(svcFwd.PortsConfigurationPath)
+    if err != nil {
+        fmt.Print(err)
+    }
+
+    str := string(b)
+
+	r, _ := regexp.Compile(svcName + "=[0-9]+")
+
+	return r.FindAllString(str, -1)
+
 }
