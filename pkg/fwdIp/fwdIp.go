@@ -23,6 +23,7 @@ type ForwardIPOpts struct {
 	Port                     string
 	ForwardConfigurationPath string
 	ForwardIPReservations    []string
+	CheckIPReservations		 bool
 }
 
 // Registry is a structure to create and hold all of the
@@ -115,19 +116,21 @@ func determineIP(regKey string, opts ForwardIPOpts) net.IP {
 
 func addToRegistry(regKey string, opts ForwardIPOpts, ip net.IP) error {
 	allocationKey := fmt.Sprintf("%s", ip.String())
-	if _, ok := ipRegistry.allocated[allocationKey]; ok {
-		// ip/port pair has allready ben allocated
-		msg := fmt.Sprintf("Unable to forward service %s to requested IP %s due to collision. Will allocate next available", opts.ServiceName, allocationKey)
-		log.Error(msg)
-		return errors.New(msg)
-	}
+	if(opts.CheckIPReservations){
+		if _, ok := ipRegistry.allocated[allocationKey]; ok {
+			// ip/port pair has allready ben allocated
+			msg := fmt.Sprintf("Unable to forward service %s to requested IP %s due to collision. Will allocate next available", opts.ServiceName, allocationKey)
+			log.Error(msg)
+			return errors.New(msg)
+		}
 
-	// check for conflicting reservation
-	if conflicting := hasConflictingReservations(opts, ip.String()); conflicting != nil {
-		msg := fmt.Sprintf("Conflicting reservation for %s on %s when placing %s. Will allocate next available",
-			conflicting.Name, allocationKey, opts.ServiceName)
-		log.Debug(msg)
-		return errors.New(msg)
+		// check for conflicting reservation
+		if conflicting := hasConflictingReservations(opts, ip.String()); conflicting != nil {
+			msg := fmt.Sprintf("Conflicting reservation for %s on %s when placing %s. Will allocate next available",
+				conflicting.Name, allocationKey, opts.ServiceName)
+			log.Debug(msg)
+			return errors.New(msg)
+		}
 	}
 
 	ipRegistry.reg[regKey] = ip
@@ -232,7 +235,9 @@ func applyCLIPassedReservations(opts ForwardIPOpts, f *ForwardConfiguration) *Fo
 			f.ServiceConfigurations = append(f.ServiceConfigurations, res)
 		}
 	}
-	validateForwardConfiguration(f)
+	if(opts.CheckIPReservations){
+		validateForwardConfiguration(f)
+	}
 	return f
 }
 

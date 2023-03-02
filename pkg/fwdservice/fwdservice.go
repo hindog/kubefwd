@@ -80,6 +80,8 @@ type ServiceFWD struct {
 	ForwardIPReservations    []string // cli passed IP reservations
 
 	PortsConfigurationPath string   // file path to IP reservation configuration
+
+	CheckIPReservations bool //Check IP reservations
 }
 
 /**
@@ -252,6 +254,7 @@ func (svcFwd *ServiceFWD) LoopPodsToForward(pods []v1.Pod, includePodNameInHost 
 			Port:                     podPort,
 			ForwardConfigurationPath: svcFwd.ForwardConfigurationPath,
 			ForwardIPReservations:    svcFwd.ForwardIPReservations,
+			CheckIPReservations:      svcFwd.CheckIPReservations,
 		}
 		localIp, err := fwdnet.ReadyInterface(opts)
 		if err != nil {

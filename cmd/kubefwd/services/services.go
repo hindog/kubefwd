@@ -60,6 +60,7 @@ var isAllNs bool
 var fwdConfigurationPath string
 var fwdReservations []string
 var portsConfigurationPath string
+var checkIPReservations bool
 
 func init() {
 	// override error output from k8s.io/apimachinery/pkg/util/runtime
@@ -80,6 +81,7 @@ func init() {
 	Cmd.Flags().StringSliceVarP(&fwdReservations, "reserve", "r", []string{}, "Specify an IP reservation. Specify multiple reservations by duplicating this argument.")
 	Cmd.Flags().StringVarP(&fwdConfigurationPath, "fwd-conf", "z", "", "Define an IP reservation configuration")
 	Cmd.Flags().StringVarP(&portsConfigurationPath, "port-conf", "p", "", "Define ports for services")
+	Cmd.Flags().BoolVarP(&checkIPReservations, "check-ip", "i", true, "Check ip reservations")
 
 }
 
@@ -451,6 +453,7 @@ func (opts *NamespaceOpts) AddServiceHandler(obj interface{}) {
 		ForwardConfigurationPath: fwdConfigurationPath,
 		ForwardIPReservations:    fwdReservations,
 		PortsConfigurationPath:   portsConfigurationPath,
+		CheckIPReservations:	  checkIPReservations,
 	}
 
 	// Add the service to the catalog of services being forwarded
