@@ -1,4 +1,4 @@
-module github.com/txn2/kubefwd
+module github.com/hindog/kubefwd
 
 go 1.18
 
